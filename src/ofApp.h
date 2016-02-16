@@ -40,14 +40,15 @@ class ofApp : public ofBaseApp{
 		ofxButton setHostBT;
 		ofParameter<int> targetPort;
 		ofxButton setPortBT;
+		void setHostPressed();
+		void setPortPressed();
 
 		ofParameter<bool> primaryJoints; //spinebase,spineMid,neck,head, hands, feets
 		ofParameter<bool> secondaryJoints; //shoulders, arms, fingers, knee, hips,... everything left
-	
-		void ofApp::setHostPressed();
-		void ofApp::setPortPressed();
+		void primaryChanged(bool &value);
+		void secondaryChanged(bool &value);
 
-		void ofApp::primaryChanged(bool &value);
-		void ofApp::secondaryChanged(bool &value);
+		vector<int> lastBodiesIds;
+
 };
 

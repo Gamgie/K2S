@@ -6,10 +6,12 @@ int panelWidth = 300;
 
 int numJoints = 25;
 
+
 //--------------------------------------------------------------
 void ofApp::setup(){
 
 	ofSetFrameRate(50);
+	ofSetWindowShape(imageWidth + panelWidth, imageHeight);
 
 	kinect.open();
 	kinect.initDepthSource();
@@ -17,73 +19,122 @@ void ofApp::setup(){
 	kinect.initInfraredSource();
 	kinect.initBodySource();
 	kinect.initBodyIndexSource();
-
-	ofSetWindowShape(imageWidth+panelWidth, imageHeight);
-
 	
 	targetHost.set("192.168.1.255");
 	targetPort.set(9090);
 
 	gui.setup("panel", "settings.xml", imageWidth, 10); // most of the time you don't need a name but don't forget to call setup
-	
 
 	gui.add(active.set("active", true));
+
 	gui.setSize(panelWidth, ofGetHeight());
 	gui.add(depthImage.set("deptImage",depthImage));
 	gui.add(irImage.set("irImage",irImage));
-	gui.add(rgbImage.set("rgbImage",rgbImage));
-
+	gui.add(rgbImage.set("rgbImage", rgbImage));
 	
 	gui.add(setHostBT.setup("Set Host"));
 	gui.add(setPortBT.setup("Set Port"));
 	gui.add(targetHost.set("Target Host",targetHost));
 	gui.add(targetPort.set("Target Port", targetPort));
-	
 	setHostBT.addListener(this, &ofApp::setHostPressed);
 	setPortBT.addListener(this, &ofApp::setPortPressed);
-	
 	
 	gui.add(primaryJoints.set("Primary Joints",primaryJoints));
 	gui.add(secondaryJoints.set("Secondary Joints", secondaryJoints));
 	
+
 	gui.loadFromFile("settings.xml");
+
+	
+	oscSender.setup(targetHost.get(),targetPort.get());
 
 	primaryJoints.addListener(this, &ofApp::primaryChanged);
 	secondaryJoints.addListener(this, &ofApp::secondaryChanged);
-	
-	oscSender.setup(targetHost.get(),targetPort.get());
+
 
 }
 
 //--------------------------------------------------------------
 void ofApp::update(){
+	if (!active) return;
+
 	kinect.update();
-
-	//--
-	//Getting joint positions (skeleton tracking)
-	//--
-	//
-
-	//printf("check skeletons\n");
 	
 	auto bodies = kinect.getBodySource()->getBodies();
+
+	//search for new bodies
+	for (auto body : bodies) {
+		if (body.tracked)
+		{
+			bool found = false;
+			for (int id : lastBodiesIds)
+			{
+				if (id == body.bodyId) found = true;
+			}
+
+			if (!found)
+			{
+				//new body detected
+				printf("Body entered : %i / %i\n", body.bodyId);
+				ofxOscMessage msg;
+				msg.setAddress("/k2s/body/entered");
+				msg.addIntArg(body.bodyId);
+				oscSender.sendMessage(msg,false);
+			}
+		}
+	}
+
+	//Seach for left bodies
+	for (int id: lastBodiesIds) {
+		bool found = false;
+		for (auto body : bodies)
+		{
+			if (body.tracked && id == body.bodyId) found = true;
+		}
+
+		if (!found)
+		{
+			//body left detected
+			ofxOscMessage msg;
+			msg.setAddress("/k2s/body/left");
+			msg.addIntArg(id);
+			oscSender.sendMessage(msg,false);
+
+			printf("Body left : %i\n", id);
+
+		}
+	}
+
+	lastBodiesIds.clear();
+
 	for (auto body : bodies) {
 
+		if (body.tracked)
+		{
+			lastBodiesIds.push_back(body.bodyId);
+
+			ofxOscMessage msg;
+			msg.setAddress("/k2s/body/update");
+			msg.addIntArg(body.bodyId);
+			msg.addIntArg((int)body.leftHandState);
+			msg.addIntArg((int)body.rightHandState);
+			oscSender.sendMessage(msg, false);
+		}
+
 		for (auto joint : body.joints) {
-			//now do something with the joints
 			
 			bool sendThisJoint = false;
 			switch (joint.first)
 			{
-			case 0:
-			case 1:
-			case 2:
-			case 3:
-			case 6:
-			case 10:
-			case 5:
-			case 9:
-			case 20:
+			case JointType_SpineBase:
+			case JointType_SpineMid:
+			case JointType_Neck:
+			case JointType_Head:
+			case JointType_WristLeft:
+			case JointType_WristRight:
+			case JointType_ElbowLeft:
+			case JointType_ElbowRight:
+			case JointType_SpineShoulder:
 				sendThisJoint = primaryJoints.get();
 				break;
 
@@ -94,17 +145,23 @@ void ofApp::update(){
 
 			if (!sendThisJoint) continue;
 
-			ofxOscMessage msg;
-			msg.setAddress("/k2s/joint");
-			msg.addIntArg(body.bodyId);
-			msg.addIntArg(joint.first);
+			ofxOscMessage jointMsg;
+			jointMsg.setAddress("/k2s/joint");
+			jointMsg.addIntArg(body.bodyId);
+			jointMsg.addIntArg(joint.first);
 
 			ofVec3f pos = joint.second.getPosition();
-			msg.addFloatArg(pos.x);
-			msg.addFloatArg(pos.y);
-			msg.addFloatArg(pos.z);
-			msg.addIntArg(joint.second.getTrackingState());
-			oscSender.sendMessage(msg, false);
+			jointMsg.addFloatArg(pos.x);
+			jointMsg.addFloatArg(pos.y);
+			jointMsg.addFloatArg(pos.z);
+
+			ofVec3f rot = joint.second.getOrientation().getEuler();
+			jointMsg.addFloatArg(rot.x);
+			jointMsg.addFloatArg(rot.y);
+			jointMsg.addFloatArg(rot.z);
+
+			jointMsg.addIntArg(joint.second.getTrackingState());
+			oscSender.sendMessage(jointMsg, false);
 
 			//printf("sending osc\n");
 
@@ -158,7 +215,7 @@ void ofApp::draw(){
 
 	//kinect.getBodyIndexSource()->draw(0, 0, imageWidth, imageHeight);
 	kinect.getBodySource()->drawProjected(0, 0, imageWidth, imageHeight);
-	
+
 
 	//gui
 	ofDrawBitmapString("K2S", imageWidth + panelWidth / 2-10, 20);
@@ -169,6 +226,7 @@ void ofApp::setHostPressed()
 {
 	string host = ofSystemTextBoxDialog("Target host :", targetHost);
 	targetHost.set(host);
+	oscSender.setup(targetHost.get(), targetPort.get());
 };
 
 
@@ -176,6 +234,7 @@ void ofApp::setPortPressed()
 {
 	string port = ofSystemTextBoxDialog("Target port :", targetPort.toString());
 	targetPort.set(ofToInt(port));
+	oscSender.setup(targetHost.get(), targetPort.get());
 };
 
 void ofApp::primaryChanged(bool &value)
