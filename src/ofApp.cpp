@@ -35,7 +35,7 @@ void ofApp::setup(){
 	gui.add(setHostBT.setup("Set Host"));
 	gui.add(setPortBT.setup("Set Port"));
 	gui.add(targetHost.set("Target Host",targetHost));
-	gui.add(targetPort.set("Target Port", targetPort));
+	gui.add(targetPort.set("Target Port", targetPort, 2000, 10000));
 	setHostBT.addListener(this, &ofApp::setHostPressed);
 	setPortBT.addListener(this, &ofApp::setPortPressed);
 	
