@@ -197,17 +197,17 @@ void ofApp::draw(){
 
 	if (active)
 	{
-		if (depthImage.get())
+		if (depthImage.get() && kinect.getDepthSource()->getTexture().isAllocated())
 		{
 			kinect.getDepthSource()->draw(0, 0, imageWidth, imageHeight);  // note that the depth texture is RAW so may appear dark
 		}
 
-		if (irImage.get())
+		if (irImage.get() && kinect.getInfraredSource()->getTexture().isAllocated())
 		{
 			kinect.getInfraredSource()->draw(0, 0, imageWidth, imageHeight);
 		}
 
-		if (rgbImage.get())
+		if (rgbImage.get() && kinect.getColorSource()->getTexture().isAllocated())
 		{
 			kinect.getColorSource()->draw(0, 0, imageWidth, imageHeight);
 		}
