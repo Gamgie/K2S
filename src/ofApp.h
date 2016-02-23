@@ -27,6 +27,7 @@ class ofApp : public ofBaseApp{
 		
 		ofxKFW2::Device kinect;
 		ofxOscSender oscSender;
+		ofxOscReceiver oscReceiver;
 
 		//gui and params
 		ofxPanel gui;
@@ -49,6 +50,8 @@ class ofApp : public ofBaseApp{
 		void secondaryChanged(bool &value);
 
 		vector<int> lastBodiesIds;
+
+		void setKinectConnected(bool value, bool force = false);
 
 };
 

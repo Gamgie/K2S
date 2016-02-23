@@ -6,6 +6,11 @@ int panelWidth = 300;
 
 int numJoints = 25;
 
+float lastNewFrameTime = 0;
+float maxNoNewFrameTime = .5;
+bool kinectIsConnected = false;
+
+int oscReceivePort = 9091;
 
 //--------------------------------------------------------------
 void ofApp::setup(){
@@ -47,19 +52,64 @@ void ofApp::setup(){
 
 	
 	oscSender.setup(targetHost.get(),targetPort.get());
+	oscReceiver.setup(oscReceivePort);
+	
 
 	primaryJoints.addListener(this, &ofApp::primaryChanged);
 	secondaryJoints.addListener(this, &ofApp::secondaryChanged);
 
-
+	lastNewFrameTime = 0;
 }
 
 //--------------------------------------------------------------
 void ofApp::update(){
+
+	//OSC
+
+	// check for waiting messages
+	while (oscReceiver.hasWaitingMessages()) {
+		// get the next message
+		ofxOscMessage m;
+		oscReceiver.getNextMessage(m);
+
+		// check for mouse moved message
+		if (m.getAddress() == "/k2s/active") {
+			active = m.getArgAsInt(0) > 0;
+		}
+		// check for mouse button message
+		else if (m.getAddress() == "/k2s/device/connected") {
+			// the single argument is a string
+			setKinectConnected(kinectIsConnected, true);
+		}
+		// check for an image being sent (note: the size of the image depends greatly on your network buffer sizes - if an image is too big the message won't come through ) 
+		else if (m.getAddress() == "/k2s/primary") {
+			primaryJoints = m.getArgAsInt(0) > 0;
+		}
+		else if (m.getAddress() == "/k2s/secondary") {
+			secondaryJoints = m.getArgAsInt(0) > 0;
+		}
+
+	}
+
+
+	//KINECT PROCESSING
+
 	if (!active) return;
 
 	kinect.update();
 	
+	if (kinect.isFrameNew())
+	{
+		lastNewFrameTime = ofGetElapsedTimef();
+		setKinectConnected(true);
+	}else
+	{
+		if (ofGetElapsedTimef() - lastNewFrameTime > maxNoNewFrameTime)
+		{
+			setKinectConnected(false);
+		}
+	}
+
 	auto bodies = kinect.getBodySource()->getBodies();
 
 	//search for new bodies
@@ -189,6 +239,8 @@ void ofApp::update(){
 	*/
 
 
+
+
 }
 
 //--------------------------------------------------------------
@@ -197,29 +249,60 @@ void ofApp::draw(){
 
 	if (active)
 	{
-		if (depthImage.get() && kinect.getDepthSource()->getTexture().isAllocated())
-		{
-			kinect.getDepthSource()->draw(0, 0, imageWidth, imageHeight);  // note that the depth texture is RAW so may appear dark
-		}
+		//bool imageAv = kinect.getDepthSource()->getTexture().isAllocated();
 
-		if (irImage.get() && kinect.getInfraredSource()->getTexture().isAllocated())
+		if(kinectIsConnected)
 		{
-			kinect.getInfraredSource()->draw(0, 0, imageWidth, imageHeight);
-		}
+			if (depthImage.get())
+			{
+				kinect.getDepthSource()->draw(0, 0, imageWidth, imageHeight);  // note that the depth texture is RAW so may appear dark
+			}
 
-		if (rgbImage.get() && kinect.getColorSource()->getTexture().isAllocated())
+			if (irImage.get())
+			{
+				kinect.getInfraredSource()->draw(0, 0, imageWidth, imageHeight);
+			}
+
+			if (rgbImage.get())
+			{
+				kinect.getColorSource()->draw(0, 0, imageWidth, imageHeight);
+			}
+
+			//kinect.getBodyIndexSource()->draw(0, 0, imageWidth, imageHeight);
+			kinect.getBodySource()->drawProjected(0, 0, imageWidth, imageHeight);
+
+		}
+		else
 		{
-			kinect.getColorSource()->draw(0, 0, imageWidth, imageHeight);
+			ofPushMatrix();
+			ofPushStyle();
+			ofTranslate(50, 50);
+			ofScale(3, 3);
+			ofSetColor(ofColor::orangeRed);
+			ofDrawBitmapString("KINECT IS NOT CONNECTED", 0,0);
+			ofPopStyle();
+			ofPopMatrix();
+
 		}
 	}
 
-	//kinect.getBodyIndexSource()->draw(0, 0, imageWidth, imageHeight);
-	kinect.getBodySource()->drawProjected(0, 0, imageWidth, imageHeight);
-
-
+	
 	//gui
 	ofDrawBitmapString("K2S", imageWidth + panelWidth / 2-10, 20);
 	gui.draw();
+}
+
+
+void ofApp::setKinectConnected(bool value, bool force)
+{
+	if (kinectIsConnected == value && !force) return;
+	kinectIsConnected = value;
+
+	printf("Kinect Connection Changed : %i\n",kinectIsConnected);
+	ofxOscMessage msg;
+	msg.setAddress("/k2s/device/connected");
+	msg.addIntArg(kinectIsConnected?1:0);
+	oscSender.sendMessage(msg, false);
 }
 
 void ofApp::setHostPressed()
