@@ -18,3 +18,6 @@ K2S is a OSC kinect v2 streamer.
 ## Setup :
  - Environment variables : 
   - OF_ROOT to openFrameworks 0.9.2 root dir
+
+## Compilation :
+ - ofxKinectForWindows2 needs x64 compilation, so win32 compilation is not supported for this project.
