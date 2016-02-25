@@ -9,9 +9,13 @@ K2S is a OSC kinect v2 streamer.
 
 
 
-Installation
- - Dependencies : SpoutSDK (installer), Kinect v2 SDK, ofxKinectForWindows2 (see github's instructions)
- - Pre-setup :
-   Environment variables : 
-     OF_ROOT to openFrameworks 0.9.2 root dir
-     SPOUTSDK to SpoutSdk dir (not root install folder, <spootRoot>/SPOUTSDK/SpoutSdk where the .h and .cpp files are)
+# Installation
+##Dependencies
+ - SpoutSDK (installer)
+ - Kinect v2 SDK
+ - ofxKinectForWindows2 (see github's instructions)
+
+## Setup :
+ - Environment variables : 
+  - OF_ROOT to openFrameworks 0.9.2 root dir
+  - SPOUTSDK to SpoutSdk dir (not root install folder, <spootRoot>/SPOUTSDK/SpoutSdk where the .h and .cpp files are)
