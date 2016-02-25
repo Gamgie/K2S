@@ -12,6 +12,8 @@ bool kinectIsConnected = false;
 
 int oscReceivePort = 9091;
 
+float lastSendTime = 0;
+
 //--------------------------------------------------------------
 void ofApp::setup(){
 
@@ -28,6 +30,8 @@ void ofApp::setup(){
 	targetHost.set("192.168.1.255");
 	targetPort.set(9090);
 
+	sendRate.set(30);
+
 	gui.setup("panel", "settings.xml", imageWidth, 10); // most of the time you don't need a name but don't forget to call setup
 
 	gui.add(active.set("active", true));
@@ -43,7 +47,8 @@ void ofApp::setup(){
 	gui.add(targetPort.set("Target Port", targetPort, 2000, 10000));
 	setHostBT.addListener(this, &ofApp::setHostPressed);
 	setPortBT.addListener(this, &ofApp::setPortPressed);
-	
+
+	gui.add(sendRate.set("Send Rate", sendRate,1,100));
 	gui.add(primaryJoints.set("Primary Joints",primaryJoints));
 	gui.add(secondaryJoints.set("Secondary Joints", secondaryJoints));
 	
@@ -96,6 +101,8 @@ void ofApp::update(){
 
 	if (!active) return;
 
+	float sendTimeGap = 1.0 / sendRate;
+	
 	kinect.update();
 	
 	if (kinect.isFrameNew())
@@ -109,6 +116,12 @@ void ofApp::update(){
 			setKinectConnected(false);
 		}
 	}
+
+
+	//Check send Rate
+	if (ofGetElapsedTimef() - lastSendTime < sendTimeGap) return;
+	lastSendTime = ofGetElapsedTimef();
+
 
 	auto bodies = kinect.getBodySource()->getBodies();
 

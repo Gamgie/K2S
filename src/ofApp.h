@@ -44,6 +44,7 @@ class ofApp : public ofBaseApp{
 		void setHostPressed();
 		void setPortPressed();
 
+		ofParameter<int> sendRate; //fps
 		ofParameter<bool> primaryJoints; //spinebase,spineMid,neck,head, hands, feets
 		ofParameter<bool> secondaryJoints; //shoulders, arms, fingers, knee, hips,... everything left
 		void primaryChanged(bool &value);
